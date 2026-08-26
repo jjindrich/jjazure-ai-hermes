@@ -1,0 +1,32 @@
+Organize the weekend trip from `data/travel-request.txt` according to
+`HERMES.md`.
+
+You MUST perform real tool calls, not print JSON, pseudocode, or a proposed
+plan.
+
+First read `data/travel-request.txt`. Then call `delegate_task` exactly once to
+create a **Program coordinator** with `role: "orchestrator"`. Give it:
+
+- the absolute project path,
+- the complete travel request,
+- all coordination rules from `HERMES.md`,
+- an instruction to spawn exactly one parallel `delegate_task` batch with
+  three leaf agents: Route planner, Meteorologist, and Budget analyst,
+- an instruction to wait for all specialists and synthesize a Czech itinerary.
+
+The coordinator's final response must be a complete Czech Markdown document
+containing:
+
+1. decision summary and selected trip variant,
+2. weather outlook with sources, retrieval time, and confidence,
+3. Saturday and Sunday timetable including travel and breaks,
+4. bad-weather substitutions,
+5. itemized budget, 10% reserve, trip total, and per-person total,
+6. booking/checking checklist,
+7. assumptions and decisions that still require a human,
+8. "Jak Hermes koordinoval agenty" describing actual specialist contributions
+   and the coordinator's adjustments.
+
+When the coordinator result returns to this interactive session, write it
+unchanged to `artifacts/weekend-plan.md` using `write_file`. Do not modify
+anything under `data/`.
