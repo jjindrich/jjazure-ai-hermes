@@ -1,0 +1,40 @@
+Organize the weekend trip from `data/travel-request.txt` according to
+`openclaw/AGENTS.md`.
+
+You MUST perform real tool calls. Do not merely describe delegation or print
+tool-call JSON.
+
+1. Read `data/travel-request.txt` and `openclaw/AGENTS.md`.
+2. Call `sessions_spawn` exactly once with:
+   - `taskName: "program_coordinator"`,
+   - `label: "Program coordinator"`,
+   - `runtime: "subagent"`,
+   - `context: "isolated"`,
+   - `cleanup: "keep"`,
+   - no `cwd` parameter,
+   - a task containing the complete travel request, coordination rules, and the
+     output requirements below.
+3. Instruct the coordinator to start exactly three native leaf sub-agents in
+   one turn, named `route_planner`, `meteorologist`, and `budget_analyst`.
+   Every leaf spawn must omit `cwd` so it inherits the repository workspace.
+   Then call `sessions_yield`. The coordinator must synthesize only after all
+   three completion events arrive.
+4. Call `sessions_yield` and wait for the coordinator result. Do not poll.
+
+The coordinator's final response must be a complete Czech Markdown document
+containing:
+
+1. decision summary and selected trip variant,
+2. weather outlook with retrieval time, confidence, and at least one literal
+   clickable source URL beginning with `https://`,
+3. Saturday and Sunday timetable including travel and breaks,
+4. bad-weather substitutions,
+5. itemized budget, 10% reserve, trip total, and per-person total,
+6. booking/checking checklist,
+7. assumptions and decisions that still require a human,
+8. "Jak OpenClaw koordinoval agenty" naming all three specialists and
+   describing their actual contributions and the coordinator's adjustments.
+
+When the coordinator result returns, write it unchanged to
+`openclaw/artifacts/weekend-plan.md`. Do not modify anything under `data/`.
+Your final reply must only confirm that the file was written.

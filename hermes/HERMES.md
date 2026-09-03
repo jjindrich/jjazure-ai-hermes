@@ -1,7 +1,7 @@
 # Hermes multi-agent travel demo
 
 The only input is `data/travel-request.txt`. The final output is
-`artifacts/weekend-plan.md`.
+`hermes/artifacts/weekend-plan.md`.
 
 ## Agent hierarchy
 
@@ -46,4 +46,4 @@ of three leaf agents:
   per person.
 - Agents may read inputs and web sources but must not edit `data/`.
 - The primary Hermes agent writes only the coordinator's final result to
-  `artifacts/weekend-plan.md`.
+  `hermes/artifacts/weekend-plan.md`.

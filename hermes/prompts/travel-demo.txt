@@ -1,5 +1,5 @@
 Organize the weekend trip from `data/travel-request.txt` according to
-`HERMES.md`.
+`hermes/HERMES.md`.
 
 You MUST perform real tool calls, not print JSON, pseudocode, or a proposed
 plan.
@@ -9,7 +9,7 @@ create a **Program coordinator** with `role: "orchestrator"`. Give it:
 
 - the absolute project path,
 - the complete travel request,
-- all coordination rules from `HERMES.md`,
+- all coordination rules from `hermes/HERMES.md`,
 - an instruction to spawn exactly one parallel `delegate_task` batch with
   three leaf agents: Route planner, Meteorologist, and Budget analyst,
 - an instruction to wait for all specialists and synthesize a Czech itinerary.
@@ -28,5 +28,5 @@ containing:
    and the coordinator's adjustments.
 
 When the coordinator result returns to this interactive session, write it
-unchanged to `artifacts/weekend-plan.md` using `write_file`. Do not modify
-anything under `data/`.
+unchanged to `hermes/artifacts/weekend-plan.md` using `write_file`. Do not
+modify anything under `data/`.

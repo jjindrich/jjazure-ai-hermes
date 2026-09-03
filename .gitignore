@@ -1,0 +1,6 @@
+node_modules/
+.openclaw-runtime/
+openclaw-workspace-state.json
+hermes/artifacts/
+openclaw/artifacts/
+openclaw/.state/
