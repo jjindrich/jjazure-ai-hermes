@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$projectRoot = $PSScriptRoot
+$repoRoot = Split-Path $PSScriptRoot -Parent
 $hermes = (Get-Command hermes -ErrorAction SilentlyContinue).Source
 
 if (-not $hermes) {
@@ -25,14 +25,14 @@ if ($authStatus -notmatch "logged in") {
 & $hermes config set delegation.max_iterations 20
 & $hermes config set agent.max_turns 50
 
-Push-Location $projectRoot
+Push-Location $repoRoot
 try {
     if (-not (Test-Path ".\data\travel-request.txt")) {
         throw "Missing input file: data\travel-request.txt"
     }
 
-    New-Item -ItemType Directory -Path ".\artifacts" -Force | Out-Null
-    Set-Clipboard (Get-Content ".\prompts\travel-demo.txt" -Raw)
+    New-Item -ItemType Directory -Path ".\hermes\artifacts" -Force | Out-Null
+    Set-Clipboard (Get-Content ".\hermes\prompts\travel-demo.txt" -Raw)
     $originalTitle = $Host.UI.RawUI.WindowTitle
     $Host.UI.RawUI.WindowTitle = "Hermes demo: press Ctrl+V and Enter"
 
@@ -52,7 +52,7 @@ try {
 
     try {
         & $hermes chat `
-            --in $projectRoot `
+            --in $repoRoot `
             --provider copilot `
             --model "gpt-5.4-mini" `
             --toolsets "file,web,delegation" `

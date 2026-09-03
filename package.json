@@ -1,0 +1,12 @@
+{
+  "name": "multi-agent-travel-demo",
+  "private": true,
+  "scripts": {
+    "install:openclaw": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/install.ps1",
+    "demo:openclaw": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/run-demo-copilot.ps1",
+    "demo:openclaw:terminal": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/run-demo-copilot.ps1 -Monitor Terminal -LogLevel debug",
+    "demo:openclaw:tui": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/run-demo-copilot.ps1 -Monitor Tui",
+    "demo:openclaw:browser": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/run-demo-copilot.ps1 -Monitor Browser",
+    "test:openclaw": "powershell -NoProfile -ExecutionPolicy Bypass -File ./openclaw/test-result.ps1 -RunResult ./openclaw/artifacts/run-result.json -Plan ./openclaw/artifacts/weekend-plan.md"
+  }
+}
