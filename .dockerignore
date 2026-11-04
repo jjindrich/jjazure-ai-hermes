@@ -1,0 +1,15 @@
+.git
+config-secret
+node_modules
+data
+hermes/artifacts
+hermes/run-demo-copilot.ps1
+.env
+.env.*
+!.env.example
+.azure/
+**/runtime.json
+**/auth.json
+**/bin
+**/obj
+test
