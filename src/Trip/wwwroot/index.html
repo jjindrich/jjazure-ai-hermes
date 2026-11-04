@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plánovač výletu — nové zadání</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #f3f6fa; }
+    body { margin: 0; }
+    main { max-width: 760px; margin: 6vh auto; padding: 2rem; background: white; border-radius: 14px; box-shadow: 0 8px 32px #15243b12; }
+    h1 { margin-top: 0; }
+    label { display: block; font-weight: 650; margin: 1.2rem 0 .45rem; }
+    textarea, input { box-sizing: border-box; width: 100%; padding: .8rem; border: 1px solid #aeb9ca; border-radius: 7px; font: inherit; }
+    textarea { min-height: 270px; resize: vertical; }
+    button { margin-top: 1rem; padding: .75rem 1.2rem; border: 0; border-radius: 7px; color: white; background: #155eef; font: inherit; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .hint, #status { color: #475467; }
+    #result { white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; background: #f8fafc; border-radius: 8px; }
+    .error { color: #b42318 !important; }
+    [hidden] { display: none !important; }
+    @media (max-width: 600px) { main { margin: 0; padding: 1.25rem; border-radius: 0; min-height: 100vh; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Nový požadavek na výlet</h1>
+    <p class="hint">Zadej cestu přímo do formuláře. Nic se nenahrává jako soubor. Požadavek se odešle zabezpečeně a po dobu zpracování je ve frontě Azure Storage.</p>
+    <form id="trip-form">
+      <label for="api-key">Přístupový klíč</label>
+      <input id="api-key" type="password" autocomplete="off" required minlength="32" aria-describedby="key-hint">
+      <p class="hint" id="key-hint">Klíč se ukládá jen v paměti této stránky; nasazené API musí používat HTTPS.</p>
+      <label for="request-text">Zadání výletu</label>
+      <textarea id="request-text" maxlength="20000" required placeholder="Kam chcete jet, kdy, kdo pojede, rozpočet, doprava, preference a omezení…"></textarea>
+      <button id="submit-button" type="submit">Odeslat zadání</button>
+    </form>
+    <section id="progress" aria-live="polite" hidden>
+      <h2>Stav požadavku</h2>
+      <p id="status"></p>
+      <p id="progress-detail" class="hint"></p>
+      <button id="resume-button" type="button" hidden>Obnovit sledování</button>
+      <pre id="result" hidden></pre>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

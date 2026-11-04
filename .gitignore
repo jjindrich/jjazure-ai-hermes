@@ -1,7 +1,11 @@
 node_modules/
-.openclaw-runtime/
-openclaw-workspace-state.json
-openclaw/*.last-good
+config-secret/
+.env
+.env.*
+!.env.example
 hermes/artifacts/
-openclaw/artifacts/
-openclaw/.state/
+infra/*.json
+**/bin/
+**/obj/
+**/TestResults/
+.build/
