@@ -1,3 +1,9 @@
+(() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme = param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+})();
+
 const form = document.querySelector("#trip-form");
 const submitButton = document.querySelector("#submit-button");
 const progress = document.querySelector("#progress");
@@ -6,6 +12,7 @@ const progressDetail = document.querySelector("#progress-detail");
 const result = document.querySelector("#result");
 const resumeButton = document.querySelector("#resume-button");
 const keyInput = document.querySelector("#api-key");
+const debugEvents = document.querySelector("#debug-events");
 const storageKey = "hermes-trip-job-id";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const labels = {
@@ -32,6 +39,7 @@ form.addEventListener("submit", async event => {
     submitButton.disabled = true;
     progress.hidden = false;
     result.hidden = true;
+    debugEvents.textContent = "Čekám na převzetí požadavku workerem.";
     statusMessage.classList.remove("error");
     try {
         const response = await fetch("/api/trips", {
@@ -77,6 +85,10 @@ async function pollStatus() {
             if (!response.ok) throw new Error(job.error || "Stav nelze načíst. Obnov sledování; neposílej stejné zadání znovu.");
             statusMessage.textContent = `ID ${currentId}: ${labels[job.status] || job.status}`;
             progressDetail.textContent = job.progress || "";
+            debugEvents.textContent = job.debugEvents?.length
+                ? job.debugEvents.map(event =>
+                    `${new Date(event.at).toLocaleTimeString("cs-CZ")}  ${event.message}`).join("\n")
+                : "Pro tuto úlohu zatím nejsou zaznamenané debug události.";
             if (job.status === "completed") {
                 result.textContent = job.result;
                 result.hidden = false;

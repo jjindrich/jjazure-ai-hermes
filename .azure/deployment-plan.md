@@ -2,6 +2,48 @@
 
 > **Status:** Deployed and verified
 
+## Debug UI application update (2026-11-04)
+
+User requested deploying the debug-enabled web application to the same group,
+subscription and private network. Application-only replacement; no Bicep,
+Storage, DNS, identity or RBAC changes. Existing instance is already stopped
+by the user. Preserve it as stopped rollback until cleanup is approved.
+Validation steps: tests, publish, Docker configuration check, current Azure
+authentication/group inventory, unchanged role review, then real request and
+authenticated debug-event retrieval on the replacement.
+
+Validation proof: 16 tests passed; Release publish and Docker configuration
+check passed. Image
+`sha256:3051dd232fc0fc798ac91d08cb3e76a759aa5d7d9065220965783f25b4349f0b`.
+Azure account confirms JJAzDev Internal1 and expected subscription. Live
+inventory confirms old instance stopped. Deployment uses existing group,
+network and unchanged Storage data roles; no infrastructure deployment needed.
+
+Deployment evidence:
+- New image `28ac6390-e80c-4809-a3e0-813827f70406`, Ready.
+- New sandbox `3bad566b-e007-43b0-9522-8d2d44a0d128`, public web:
+  `https://3bad566b-e007-43b0-9522-8d2d44a0d128--8080.swedencentral.adcproxy.io`.
+- Health, debug HTML, static assets, authenticated old result recovery and
+  unauthenticated rejection passed. Existing result retained 4,287 characters.
+- Worker first processed previously queued job
+  `4ed1ff79-27d9-492a-b0ac-b7b157066e17`, then smoke job
+  `7e81e126-7ca1-413a-9f17-d70c9f9cfb98`. Both have persistent real debug
+  events, including delegation start and terminal failure. Both timed out.
+- Sanitized runtime log classification found 24 HTTP 429 and 42
+  RateLimitError occurrences. Successful new itinerary validation is blocked
+  by model provider rate limiting; do not describe it as passed.
+- Original sandbox remains stopped for rollback; no network/data deletion.
+- Live RBAC query confirms unchanged Blob/Queue/Table Data Contributor roles.
+
+Successful full retest (2026-11-04, 18:00:39Z):
+16 C# tests, JavaScript syntax and diff checks passed. Live job
+`80f0d7fb-53bb-4f22-8e71-ca3a913ed5f6` completed with 4,238 characters.
+Form/health, authenticated API and unauthenticated rejection passed.
+Separate authenticated read confirmed nine persistent debug events, including
+real delegation running/completed and result Blob persistence.
+This successful retest supersedes the earlier rate-limit validation blocker;
+model rate limiting can still delay subsequent requests.
+
 ## Azure rename execution requested
 
 User explicitly requested deploying the Trip naming in Azure and removing
