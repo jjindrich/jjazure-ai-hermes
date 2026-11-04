@@ -40,16 +40,23 @@ public sealed class TripWorker(ITripStore store, ITripRunner runner, ILogger<Tri
         }
         using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         using var heartbeatCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
-        await store.UpdateAsync(job.Id, "running", null, null, "Hermes pripravuje plan.", token);
+        var events = new List<TripDebugEvent>(job.DebugEvents ?? []);
+        AddEvent("Worker prevzal pozadavek; spousti Hermes.");
+        await store.UpdateAsync(job.Id, "running", null, null, "Hermes pripravuje plan.", token, events);
         var heartbeat = RenewAsync();
         var terminalSaved = false;
         try
         {
             var result = await runner.RunAsync(job.Id, lease.Job.RequestText,
-                p => store.UpdateAsync(job.Id, "running", null, null, p, runCancellation.Token),
+                p =>
+                {
+                    AddEvent(p);
+                    return store.UpdateAsync(job.Id, "running", null, null, p, runCancellation.Token, events);
+                },
                 runCancellation.Token);
             var blob = await store.SaveResultAsync(job.Id, result, runCancellation.Token);
-            await store.UpdateAsync(job.Id, "completed", blob, null, "Plan je hotovy.", runCancellation.Token);
+            AddEvent("Zpracovani dokonceno; vysledek ulozen do Blob Storage.");
+            await store.UpdateAsync(job.Id, "completed", blob, null, "Plan je hotovy.", runCancellation.Token, events);
             terminalSaved = true;
             logger.LogInformation("Trip {JobId} completed; {Characters} characters.", job.Id, result.Length);
         }
@@ -64,7 +71,8 @@ public sealed class TripWorker(ITripStore store, ITripRunner runner, ILogger<Tri
             var error = ex is OperationCanceledException or TimeoutException
                 ? "Zpracovani prekrocilo casovy limit nebo spojeni s Hermes neodpovida."
                 : "Hermes nedokoncil plan. Zkontrolujte pripojeni modelu; spravce ma podrobnosti v logu.";
-            await store.UpdateAsync(job.Id, "failed", null, error, "Zpracovani selhalo.", token);
+            AddEvent("Zpracovani selhalo. Podrobnosti ma spravce v logu.");
+            await store.UpdateAsync(job.Id, "failed", null, error, "Zpracovani selhalo.", token, events);
             terminalSaved = true;
         }
         finally
@@ -74,6 +82,12 @@ public sealed class TripWorker(ITripStore store, ITripRunner runner, ILogger<Tri
             if (terminalSaved) await store.DeleteAsync(lease, token);
         }
         return true;
+
+        void AddEvent(string message)
+        {
+            events.Add(new(DateTimeOffset.UtcNow, message));
+            if (events.Count > 100) events.RemoveAt(0);
+        }
 
         async Task RenewAsync()
         {

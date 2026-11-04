@@ -21,6 +21,7 @@ public sealed class HermesRunner(HttpClient client, string apiKey, string prompt
             messages = new[] { new { role = "system", content = prompt + $"\nRequest correlation ID: {id}" },
                 new { role = "user", content = request } }
         });
+        await progress("Odesilam zadani do Hermes Gateway.");
         using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead,
             deadline.Token);
         if (!response.IsSuccessStatusCode)
@@ -31,7 +32,10 @@ public sealed class HermesRunner(HttpClient client, string apiKey, string prompt
         var eventData = new StringBuilder();
         string? finish = null;
         var done = false;
+        var eventType = "";
+        var outputStarted = false;
         var progressAt = DateTimeOffset.MinValue;
+        await progress("Hermes Gateway prijala zadani; cekam na udalosti agenta.");
         // SSE comments keep the transport alive while nested specialists are running.
         while (true)
         {
@@ -39,20 +43,46 @@ public sealed class HermesRunner(HttpClient client, string apiKey, string prompt
                 .WaitAsync(TimeSpan.FromMinutes(2), deadline.Token);
             if (line is null) break;
             if (line.Length > 1_048_576) throw new InvalidDataException("Hermes event exceeded size limit.");
+            if (line.StartsWith("event:", StringComparison.Ordinal))
+                eventType = line[6..].Trim();
             if (line.StartsWith("data:", StringComparison.Ordinal))
             {
                 if (eventData.Length > 0) eventData.Append('\n');
                 eventData.Append(line.AsSpan(5).TrimStart());
                 if (eventData.Length > 1_048_576) throw new InvalidDataException("Hermes event exceeded size limit.");
             }
-            if (line.Length != 0 || eventData.Length == 0) continue;
+            if (line.Length != 0) continue;
+            if (eventData.Length == 0) { eventType = ""; continue; }
             var data = eventData.ToString();
+            var type = eventType;
+            eventType = "";
             eventData.Clear();
             if (data == "[DONE]") { done = true; break; }
             using var json = JsonDocument.Parse(data);
             var root = json.RootElement;
             if (root.TryGetProperty("error", out _))
                 throw new InvalidDataException("Hermes provider returned an error.");
+            if (type == "hermes.tool.progress")
+            {
+                var tool = root.TryGetProperty("tool", out var toolName) ? toolName.GetString() : null;
+                var status = root.TryGetProperty("status", out var toolStatus) ? toolStatus.GetString() : null;
+                // Never expose tool arguments, previews, results or model reasoning.
+                var label = tool switch
+                {
+                    "delegate_task" => "Delegace specialistum (trasa, pocasi, rozpocet)",
+                    "web_search" => "Webove vyhledavani",
+                    "web_extract" => "Cteni webovych podkladu",
+                    _ => "Nastroj agenta"
+                };
+                if (status is "running" or "completed")
+                    await progress($"{label}: {(status == "running" ? "spusteno" : "dokonceno")}.");
+                continue;
+            }
+            if (type == "hermes.status")
+            {
+                await progress("Hermes ohlasila zmenu stavu behu.");
+                continue;
+            }
             if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
             {
                 var choice = choices[0];
@@ -63,13 +93,18 @@ public sealed class HermesRunner(HttpClient client, string apiKey, string prompt
                 {
                     text.Append(content.GetString());
                     if (text.Length > 512 * 1024) throw new InvalidDataException("Hermes result exceeded size limit.");
+                    if (!outputStarted && text.Length > 0)
+                    {
+                        await progress("Agent zacal odesilat text odpovedi.");
+                        outputStarted = true;
+                    }
                 }
             }
             if (finish is "error" or "cancelled" or "length")
                 throw new InvalidDataException($"Hermes did not complete successfully ({finish}).");
             if (DateTimeOffset.UtcNow - progressAt > TimeSpan.FromSeconds(15))
             {
-                await progress("Hermes zpracovava zadani a koordinuje specialisty.");
+                await progress($"Prijimam odpoved agenta: {text.Length} znaku.");
                 progressAt = DateTimeOffset.UtcNow;
             }
         }

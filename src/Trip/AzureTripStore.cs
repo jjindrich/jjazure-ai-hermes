@@ -55,11 +55,13 @@ public sealed class AzureTripStore : ITripStore
         var e = result.Value ?? throw new InvalidDataException("Storage returned a missing job entity.");
         return new(id, e.GetString("status")!, DateTimeOffset.Parse(e.GetString("createdAt")!),
             DateTimeOffset.Parse(e.GetString("updatedAt")!), e.GetString("resultBlob"),
-            e.GetString("error"), e.GetString("progress"));
+            e.GetString("error"), e.GetString("progress"),
+            e.GetString("debugEvents") is { } events
+                ? JsonSerializer.Deserialize<TripDebugEvent[]>(events, Json) : null);
     }
 
     public Task UpdateAsync(string id, string status, string? resultBlob, string? error,
-        string? progress, CancellationToken token)
+        string? progress, CancellationToken token, IReadOnlyList<TripDebugEvent>? debugEvents = null)
     {
         var entity = new TableEntity(Partition, id)
         {
@@ -68,6 +70,7 @@ public sealed class AzureTripStore : ITripStore
         if (resultBlob is not null) entity["resultBlob"] = resultBlob;
         if (error is not null) entity["error"] = error;
         if (progress is not null) entity["progress"] = progress;
+        if (debugEvents is not null) entity["debugEvents"] = JsonSerializer.Serialize(debugEvents, Json);
         return table.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Merge, token);
     }
 

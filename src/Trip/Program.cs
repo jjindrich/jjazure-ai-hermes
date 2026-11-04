@@ -94,7 +94,7 @@ app.MapGet("/api/trips/{id}", async (string id, ITripStore store, CancellationTo
     var result = job.Status == "completed" && job.ResultBlob is not null
         ? await store.GetResultAsync(job.ResultBlob, token) : null;
     return Results.Ok(new { job.Id, status = job.Status == "completed" && result is null ? "expired" : job.Status,
-        job.CreatedAt, job.UpdatedAt, job.Error, job.Progress, result });
+        job.CreatedAt, job.UpdatedAt, job.Error, job.Progress, job.DebugEvents, result });
 });
 await app.RunAsync();
 

@@ -101,6 +101,8 @@ public sealed class TripTests
         Assert.True(await worker.ProcessNextAsync(default));
         Assert.Equal("completed", store.Job!.Status);
         Assert.Equal("# Plan", store.Result);
+        Assert.Contains(store.Job.DebugEvents!, e => e.Message.Contains("Worker prevzal"));
+        Assert.Contains(store.Job.DebugEvents!, e => e.Message.Contains("vysledek ulozen"));
         Assert.Null(store.Lease);
     }
 
@@ -113,13 +115,27 @@ public sealed class TripTests
         await worker.ProcessNextAsync(default);
         Assert.Equal("failed", store.Job!.Status);
         Assert.NotEmpty(store.Job.Error!);
+        Assert.Contains(store.Job.DebugEvents!, e => e.Message.Contains("Zpracovani selhalo"));
         Assert.Null(store.Result);
         Assert.Null(store.Lease);
     }
 
     [Fact]
+    public async Task WorkerKeepsOnlyLatestHundredDebugEvents()
+    {
+        var store = new MemoryStore();
+        await new TripService(store).SubmitAsync("Praha", default);
+        var worker = new TripWorker(store, new ProgressRunner(), NullLogger<TripWorker>.Instance);
+        await worker.ProcessNextAsync(default);
+        Assert.Equal(100, store.Job!.DebugEvents!.Count);
+        Assert.Equal("Udalost 31", store.Job.DebugEvents[0].Message);
+        Assert.Contains("vysledek ulozen", store.Job.DebugEvents[^1].Message);
+    }
+
+    [Fact]
     public async Task StreamingClientAcceptsKeepaliveAndRequiresSuccessfulTermination()
     {
+        var events = new List<string>();
         string? submitted = null;
         var handler = new Handler(async r =>
         {
@@ -127,15 +143,23 @@ public sealed class TripTests
             Assert.False(r.Headers.Contains("X-Hermes-Session-Id"));
             return Sse(
                 ": keepalive\n\n" +
-                "event: hermes.tool.progress\ndata: {\"tool\":\"delegate_task\"}\n\n" +
+                "event: hermes.tool.progress\ndata: {\"tool\":\"delegate_task\",\"status\":\"running\",\"label\":\"SECRET_PREVIEW\"}\n\n" +
+                "event: hermes.tool.progress\ndata: {\"tool\":\"delegate_task\",\"status\":\"completed\"}\n\n" +
+                "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"PRIVATE_REASONING\"}}]}\n\n" +
                 "data: {\"choices\":[{\"delta\":{\"content\":\"# Plan\\nJak Hermes koordinoval agenty\"}}]}\n\n" +
                 "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
                 "data: [DONE]\n\n");
         });
         using var client = new HttpClient(handler) { BaseAddress = new("http://127.0.0.1:8642/v1/"), Timeout = Timeout.InfiniteTimeSpan };
         var runner = new HermesRunner(client, new string('s', 40), "travel-demo");
-        var output = await runner.RunAsync(Guid.NewGuid().ToString(), "Praha", _ => Task.CompletedTask, default);
+        var output = await runner.RunAsync(Guid.NewGuid().ToString(), "Praha",
+            p => { events.Add(p); return Task.CompletedTask; }, default);
         Assert.Contains("Jak Hermes", output);
+        Assert.Contains(events, e => e.Contains("Delegace") && e.Contains("spusteno"));
+        Assert.Contains(events, e => e.Contains("Delegace") && e.Contains("dokonceno"));
+        Assert.Contains(events, e => e.Contains("zacal odesilat"));
+        Assert.DoesNotContain("SECRET_PREVIEW", string.Join("\n", events));
+        Assert.DoesNotContain("PRIVATE_REASONING", output + string.Join("\n", events));
         Assert.True(JsonDocument.Parse(submitted!).RootElement.GetProperty("stream").GetBoolean());
     }
 
@@ -163,6 +187,7 @@ public sealed class TripTests
         using var client = app.CreateClient();
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/healthz")).StatusCode);
         Assert.Contains("resume-button", await client.GetStringAsync("/"));
+        Assert.Contains("debug-events", await client.GetStringAsync("/"));
         Assert.Contains("pollStatus", await client.GetStringAsync("/app.js"));
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await client.PostAsJsonAsync("/api/trips", new { requestText = "Praha" })).StatusCode);
@@ -175,10 +200,13 @@ public sealed class TripTests
         Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
         using var body = JsonDocument.Parse(await accepted.Content.ReadAsStringAsync());
         var url = body.RootElement.GetProperty("statusUrl").GetString();
-        app.Store.Job = app.Store.Job! with { Status = "completed", ResultBlob = "test.md" };
+        app.Store.Job = app.Store.Job! with { Status = "completed", ResultBlob = "test.md",
+            DebugEvents = [new(DateTimeOffset.UtcNow, "Delegace: dokonceno.")] };
         app.Store.Result = "# Test itinerary";
         using var result = JsonDocument.Parse(await client.GetStringAsync(url));
         Assert.Equal("# Test itinerary", result.RootElement.GetProperty("result").GetString());
+        Assert.Equal("Delegace: dokonceno.",
+            result.RootElement.GetProperty("debugEvents")[0].GetProperty("message").GetString());
         app.Store.Result = null;
         using var expired = JsonDocument.Parse(await client.GetStringAsync(url));
         Assert.Equal("expired", expired.RootElement.GetProperty("status").GetString());
@@ -194,6 +222,15 @@ public sealed class TripTests
     {
         public Task<string> RunAsync(string id, string request, Func<string, Task> progress, CancellationToken token) =>
             fail ? Task.FromException<string>(new InvalidDataException("provider error")) : Task.FromResult("# Plan");
+    }
+    private sealed class ProgressRunner : ITripRunner
+    {
+        public async Task<string> RunAsync(string id, string request, Func<string, Task> progress,
+            CancellationToken token)
+        {
+            for (var i = 0; i < 130; i++) await progress($"Udalost {i}");
+            return "# Plan";
+        }
     }
     private sealed class ApiFactory : WebApplicationFactory<Program>
     {
@@ -218,8 +255,10 @@ public sealed class MemoryStore : ITripStore
     public Task EnqueueAsync(TripMessage message, CancellationToken token)
     { Lease = new(message, "message", "receipt", 1); return Task.CompletedTask; }
     public Task<TripJob?> GetAsync(string id, CancellationToken token) => Task.FromResult(Job?.Id == id ? Job : null);
-    public Task UpdateAsync(string id, string status, string? blob, string? error, string? progress, CancellationToken token)
-    { Job = Job! with { Status = status, ResultBlob = blob, Error = error, Progress = progress }; return Task.CompletedTask; }
+    public Task UpdateAsync(string id, string status, string? blob, string? error, string? progress,
+        CancellationToken token, IReadOnlyList<TripDebugEvent>? debugEvents = null)
+    { Job = Job! with { Status = status, ResultBlob = blob, Error = error, Progress = progress,
+        DebugEvents = debugEvents?.ToArray() ?? Job!.DebugEvents }; return Task.CompletedTask; }
     public Task<QueueLease?> ReceiveAsync(CancellationToken token) => Task.FromResult(Lease);
     public Task<QueueLease> RenewAsync(QueueLease lease, CancellationToken token) => Task.FromResult(lease);
     public Task DeleteAsync(QueueLease lease, CancellationToken token) { Lease = null; return Task.CompletedTask; }

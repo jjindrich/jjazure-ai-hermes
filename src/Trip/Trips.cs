@@ -5,9 +5,10 @@ namespace Trip;
 public sealed record TripSubmission(string RequestText);
 public sealed record TripMessage(string Id, string RequestText);
 public sealed record QueueLease(TripMessage Job, string MessageId, string PopReceipt, long DequeueCount);
+public sealed record TripDebugEvent(DateTimeOffset At, string Message);
 public sealed record TripJob(string Id, string Status, DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt, string? ResultBlob = null, string? Error = null,
-    string? Progress = null);
+    string? Progress = null, IReadOnlyList<TripDebugEvent>? DebugEvents = null);
 
 public interface ITripStore
 {
@@ -16,7 +17,7 @@ public interface ITripStore
     Task EnqueueAsync(TripMessage message, CancellationToken token);
     Task<TripJob?> GetAsync(string id, CancellationToken token);
     Task UpdateAsync(string id, string status, string? resultBlob, string? error,
-        string? progress, CancellationToken token);
+        string? progress, CancellationToken token, IReadOnlyList<TripDebugEvent>? debugEvents = null);
     Task<QueueLease?> ReceiveAsync(CancellationToken token);
     Task<QueueLease> RenewAsync(QueueLease lease, CancellationToken token);
     Task DeleteAsync(QueueLease lease, CancellationToken token);

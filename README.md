@@ -95,6 +95,15 @@ a přidá jej do URL jako `?trip=ID`. Po obnovení stránky znovu vlož klíč
 a klikni **Obnovit sledování**; není nutné znovu odesílat zadání.
 Klíč ani text požadavku se do localStorage neukládají.
 
+Rozbal **Debug: průběh agenta** pro časovou osu skutečných událostí Hermes
+Gateway: převzetí workerem, odeslání zadání, spuštění a dokončení nástrojů
+(včetně delegace), začátek odpovědi a uložení výsledku nebo chybu.
+Aktualizuje se při sledování každé 3 sekundy. Posledních 100 událostí je
+uloženo u úlohy v Table a načte se i po obnovení sledování.
+Starší úlohy bez této instrumentace historii nemají. Gateway nemusí vysílat
+jednotlivé kroky vnořených specialistů; debug neukazuje jejich interní
+uvažování, obsah nástrojů, zadání ani credentials.
+
 ### Ukázkový prompt
 
 Do pole zadání můžeš vložit tento prompt použitý při ověřování nasazení:
@@ -150,14 +159,23 @@ resource group `rg-jjsandbox`, existující Sandbox Group `jjsandbox-gr1`.
 Jde o ACA Sandbox, nikoli běžnou Azure Container App.
 
 **Ověřené nasazení 4. 11. 2026:**
-[webový formulář](https://c2a33bf1-fb60-4241-b754-9d74b5ac60c1--8080.swedencentral.adcproxy.io).
-[Hotový testovací výsledek](https://c2a33bf1-fb60-4241-b754-9d74b5ac60c1--8080.swedencentral.adcproxy.io/?trip=27a5710f-6213-4eed-832f-f7fb016de20d)
+[webový formulář](https://3bad566b-e007-43b0-9522-8d2d44a0d128--8080.swedencentral.adcproxy.io).
+[Hotový testovací výsledek](https://3bad566b-e007-43b0-9522-8d2d44a0d128--8080.swedencentral.adcproxy.io/?trip=27a5710f-6213-4eed-832f-f7fb016de20d)
 obnovíš zadáním stejného klíče a kliknutím na **Obnovit sledování**.
 Úloha skončila jako `completed` přibližně za minutu a uložila 4 736 znaků.
 Nová instance používá image `hermes-trip`, `Trip.dll` a `TRIP_API_KEY`.
 Původní uložené výsledky jsou dostupné i přes novou adresu se stejným klíčem.
 Běží pouze jedna Trip instance. Nahrazená instance, šest starých image
 a nepoužívané síťové připojení byly odstraněny.
+
+Aktualizace s debug sekcí běží na výše uvedené nové adrese. Předchozí
+instance `c2a33bf1-fb60-4241-b754-9d74b5ac60c1` zůstává zastavená pro rollback.
+Na nové verzi bylo ověřeno načtení starého výsledku i skutečné debug události
+delegace a chyby. První pokusy skončily timeoutem při HTTP 429 / RateLimitError.
+Opakovaný kompletní test úlohy `80f0d7fb-53bb-4f22-8e71-ca3a913ed5f6`
+4. 11. 2026 v 19:00 CET již prošel: `completed`, 4 238 znaků, přibližně
+11 minut běhu. Uložená debug historie obsahuje spuštění i dokončení delegace,
+začátek odpovědi a potvrzení uložení výsledku.
 
 Dedikovaná VNet `vnet-jjsandbox-trip` je ve stejném resource groupu.
 Má adresní prostor `10.42.0.0/16`, delegovaný ACA subnet `10.42.0.0/23`
